@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/imroc/req/v3 v3.39.0
+	github.com/imroc/req/v3 v3.40.1
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
