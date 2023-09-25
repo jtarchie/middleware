@@ -2,6 +2,7 @@ package middleware_test
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/imroc/req/v3"
 	"github.com/jtarchie/middleware"
@@ -10,8 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/ghttp"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var _ = Describe("LoggingMiddleware", func() {
@@ -22,16 +21,10 @@ var _ = Describe("LoggingMiddleware", func() {
 
 	BeforeEach(func() {
 		buffer = gbytes.NewBuffer()
-		logger := zap.New(
-			zapcore.NewCore(
-				zapcore.NewJSONEncoder(zap.NewProductionConfig().EncoderConfig),
-				zapcore.AddSync(buffer),
-				zapcore.InfoLevel,
-			),
-		)
+		logger := slog.New(slog.NewJSONHandler(buffer, nil))
 
 		router := echo.New()
-		router.Use(middleware.ZapLogger(logger))
+		router.Use(middleware.Logger(logger))
 		router.GET("/", func(c echo.Context) error {
 			//nolint: wrapcheck
 			return c.String(200, "abcd")
@@ -41,7 +34,7 @@ var _ = Describe("LoggingMiddleware", func() {
 			return c.NoContent(200)
 		})
 		router.GET("/error", func(c echo.Context) error {
-			return fmt.Errorf("some error message")
+			return fmt.Errorf("some error message") //nolint:goerr113
 		})
 
 		serverHTTP = ghttp.NewServer()
@@ -78,16 +71,17 @@ var _ = Describe("LoggingMiddleware", func() {
 				Get(serverHTTP.URL())
 			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(buffer).Should(gbytes.Say(`"level":"info"`))
-			Eventually(buffer).Should(gbytes.Say(`"ts":\d+\.\d+`))
+			Eventually(buffer).Should(gbytes.Say(`"level":"INFO"`))
 			Eventually(buffer).Should(gbytes.Say(`"msg":"http_request"`))
+
 			Eventually(buffer).Should(gbytes.Say(`"bytes_in":"0"`))
 			Eventually(buffer).Should(gbytes.Say(`"bytes_out":"4"`))
-			Eventually(buffer).Should(gbytes.Say(`"status":200`))
 			Eventually(buffer).Should(gbytes.Say(`"id":"[0-9a-fA-F]{8}-[[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"`))
 			Eventually(buffer).Should(gbytes.Say(`"latency_human":"\d+`))
 			Eventually(buffer).Should(gbytes.Say(`"method":"GET"`))
 			Eventually(buffer).Should(gbytes.Say(`"remote_ip":"\d+\.\d+\.\d+\.\d+"`))
+			Eventually(buffer).Should(gbytes.Say(`"status":200`))
+			Eventually(buffer).Should(gbytes.Say(`"time":"\d+-\d+-\d+T`))
 		})
 	})
 
@@ -98,10 +92,10 @@ var _ = Describe("LoggingMiddleware", func() {
 				Get(serverHTTP.URL())
 			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(buffer).Should(gbytes.Say(`"level":"info"`))
+			Eventually(buffer).Should(gbytes.Say(`"level":"INFO"`))
 			Eventually(buffer).Should(gbytes.Say(`"msg":"http_request"`))
-			Eventually(buffer).Should(gbytes.Say(`"status":200`))
 			Eventually(buffer).Should(gbytes.Say(`"id":"unique-id"`))
+			Eventually(buffer).Should(gbytes.Say(`"status":200`))
 		})
 	})
 })
